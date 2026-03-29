@@ -1,0 +1,24 @@
+[build-system]
+requires = [
+    "flit_core >=3.11,<4",
+    "fire",
+    "pandas",
+    "jinja2",
+    "numpy",
+    "pint",
+    "mpmath",
+    "questionary"
+]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "dcm_framework"
+authors = [{name = "Ilyá Kostolomov", email = "ilya@icgi.no"}]
+readme = "README.md"
+dynamic = ["version", "description"]
+
+[project.scripts]
+hello = "dcm_framework.main:main"
+
+[project.urls]
+Home = "https://github.com/icgi/dcm_framework"
