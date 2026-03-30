@@ -142,8 +142,5 @@ DCM Framework is a part of the **ENDPATH** project, that aims to provide a robus
 > [!NOTE]
 > To enable fast rendering in `OpenSCAD`, please use the Manifold backend in one of the [recent releases](https://github.com/openscad/openscad/releases).
 
-
-## Quick Start
-
 &nbsp;
 &nbsp;
