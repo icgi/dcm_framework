@@ -19,9 +19,9 @@
 
 &nbsp;
 
-## Overview
+## Usage
 
-(pending)
+```python src\dcm_framework\__main__.py build_experiment```
 
 ## Features
 
@@ -35,9 +35,6 @@ FPM experiment specifications and metadata can be expressed in many ways, which 
 
    * 3D printable illuminator shell models with custom cutouts for your light-emitting diodes
    * Interactive previews with panning and zooming, and user's custom visualisation channels to view in relative positions associated with your emitters (eg. histograms, normalised intensities, Fourier spectrum).
-   * Integration with external applications for reporting and optical modelling.
-
-Without the ``--interactive`` flag, the builder behaves like a regular command-line tool and can be used in complex pipelines, such as those for [factorial experimental design](https://pythonhosted.org/pyDOE/factorial.html).
 
 &nbsp;
 
@@ -90,13 +87,6 @@ The protocol system routes acquisition parameters and metadata throughout the ex
 After FPM data acquisition, several types of model-mismatch artefacts can be more easily identified using a high-resolution ptychogram preview. Such artefacts include intensity fluctuations, vignetting, exposure mismatch, and, most importantly, emitter angle misalignment and pose errors. The *Ptychogram Navigator* supports pan-and-zoom navigation with a lossy version of the original images for preview. Additionally, the user can extend the dataset viewed by the navigator by creating their own channels and enable them by typing the name in the free text input field. The only prerequisite is for the browser of choice to support the new channel's image type (compressed `jpeg` is recommended) and that the image file names follow the naming pattern in the protocol. *Ptychogram Navigator* is a portable, protocol-specific `html` file supported by any modern browser and requiring only adherence to the output folder structure specified in the protocol.
 
 &nbsp;
-
-### Arbitrary Precision
-
-FPM experiments are likely to have a modest number of emitter angles (often fewer than 1000). Successive transformations in downstream tooling (such as CAD kernels, mesh pipelines, and similar tools) can compound rounding errors. ***DCM Framework*** minimises such error by defaulting to an `mpmath`-based calculation backend for arbitrary precision trigonometry.
-
-&nbsp;
-
 
 
 ## Glossary

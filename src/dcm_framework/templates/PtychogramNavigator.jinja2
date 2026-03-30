@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+
+    <style>
+html, body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+}
+#container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+    cursor: grab;
+}
+#canvas {
+    width: 100vmin;
+    height: 100vmin;
+    position: absolute;
+    transform-origin: 0 0;
+}
+.marker {
+    position: absolute;
+    width: {{ marker_size_percentage }}%;
+    height: {{ marker_size_percentage }}%;
+    background-size: cover;
+    background-position: center;
+    transform: translate(-50%, -50%);
+    z-index: 1;
+    transition: transform 0.12s ease;
+}
+.marker:hover {
+    transform: translate(-50%, -50%) scale(1.25);
+    z-index: 100;
+}
+#image-path-input {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 1000;
+    padding: 6px 10px;
+    font-size: 14px;
+}
+</style>
+
+</head>
+<body>
+    <input id="image-path-input" type="text" value="preview" placeholder="select channel">
+
+    <div id="container">
+        <div id="canvas">
+
+{% for marker in markers %}
+<div class="marker"
+     data-path-to-preview-image="{{ marker.path_to_preview_image }}"
+     style="left: {{ marker.left_percentage }}%;
+            top: {{ marker.top_percentage }}%;
+            background-image: url({{ marker.path_to_preview_image }});">
+</div>
+{% endfor %}
+
+        </div>
+    </div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const container = document.getElementById('container');
+const imagePathInput = document.getElementById('image-path-input');
+let scale = 1.0;
+let originX = 0;
+let originY = 0;
+
+let isDragging = false;
+let dragStartX = 0;
+let dragStartY = 0;
+let startOriginX = 0;
+let startOriginY = 0;
+
+function updateTransform() {
+    canvas.style.transform = `translate(${originX}px, ${originY}px) scale(${scale})`;
+}
+
+function updateMarkerImages() {
+    const overridePath = imagePathInput.value.trim();
+    document.querySelectorAll('.marker').forEach(function(marker) {
+        const pathToPreviewImage = marker.dataset.pathToPreviewImage;
+        const url = overridePath
+            ? overridePath + '/' + pathToPreviewImage.split('/').pop()
+            : pathToPreviewImage;
+        marker.style.backgroundImage = `url(${url})`;
+    });
+}
+
+imagePathInput.addEventListener('input', updateMarkerImages);
+
+container.addEventListener('wheel', function(event) {
+    event.preventDefault();
+    const rect = container.getBoundingClientRect();
+    const offsetX = event.clientX - rect.left;
+    const offsetY = event.clientY - rect.top;
+
+    const preZoomX = (offsetX - originX) / scale;
+    const preZoomY = (offsetY - originY) / scale;
+
+    const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9;
+    scale *= zoomFactor;
+
+    originX = offsetX - preZoomX * scale;
+    originY = offsetY - preZoomY * scale;
+
+    updateTransform();
+}, { passive: false });
+
+container.addEventListener('mousedown', function(event) {
+    isDragging = true;
+    container.style.cursor = 'grabbing';
+    dragStartX = event.clientX;
+    dragStartY = event.clientY;
+    startOriginX = originX;
+    startOriginY = originY;
+});
+
+container.addEventListener('mousemove', function(event) {
+    if (isDragging) {
+        const dx = event.clientX - dragStartX;
+        const dy = event.clientY - dragStartY;
+        originX = startOriginX + dx;
+        originY = startOriginY + dy;
+        updateTransform();
+    }
+});
+
+container.addEventListener('mouseup', function() {
+    isDragging = false;
+    container.style.cursor = 'grab';
+});
+
+container.addEventListener('mouseleave', function() {
+    isDragging = false;
+    container.style.cursor = 'grab';
+});
+
+function centerCanvas() {
+    originX = (container.clientWidth - canvas.offsetWidth) / 2;
+    originY = (container.clientHeight - canvas.offsetHeight) / 2;
+    updateTransform();
+}
+
+window.addEventListener('resize', centerCanvas);
+centerCanvas();
+updateMarkerImages();
+</script>
+
+</body>
+</html>

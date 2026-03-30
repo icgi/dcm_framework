@@ -1,0 +1,5 @@
+positions = [
+{%- for entry in positions %}
+    [{{ entry.x___mm }}, {{ entry.y___mm }}, {{ entry.rotation___deg }}, {{ entry.scaling_x }}, {{ entry.scaling_y }}],
+{%- endfor %}
+];
