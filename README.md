@@ -17,6 +17,9 @@
 > [!NOTE]
 > For dome illuminator-friendly flexible LED chains, please see ***[Fluxure](https://github.com/icgi/fluxure/tree/main)***
 
+> [!CAUTION]
+> This project is in the proof-of-concept phase. The API is not yet stable. Please use with caution.
+
 &nbsp;
 
 ## Usage
