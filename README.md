@@ -24,7 +24,9 @@
 
 ## Usage
 
-```python src\dcm_framework\__main__.py build_experiment```
+```
+python -m dcm_framework build_experiment
+```
 
 ## Features
 
