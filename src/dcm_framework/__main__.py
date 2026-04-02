@@ -416,7 +416,7 @@ class DcmFrameworkRunner:
             (output_dir / "angles.scad").write_text(angles_scad, encoding="utf-8")
 
             for shell_filename in [
-                "hemispehrical_illuminator_shell.scad",
+                "hemispherical_illuminator_shell.scad",
                 "planar_illuminator_shell.scad",
             ]:
                 shutil.copy(templates_dir / shell_filename, output_dir / shell_filename)
