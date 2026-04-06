@@ -110,7 +110,7 @@ After FPM data acquisition, several types of model-mismatch artefacts can be mor
 * `ptychogram frame` — a single intensity recording stemming from an angle or group (if multiplexing is used)
 * `emitter` — the set of electronics contained within a single LED package
 * `junction` — an element inside the `emitter` capable of emitting energy in a specific form or band (eg, a specific wavelength of light)
-* `mode` — a system-wide single ASCII symbol referring to the acquisition mode. Designates wavelengths and
+* `mode` — a system-wide single ASCII symbol referring to the acquisition mode. Designates spectral configurations (wavelength) and other acquisition modes that produce full ptychograms, but exist outside of multispectral FPM
 * `shell` — the plastic mold for placing the emitters at the angles corresponding to the illumination model used for reconstruction (can be hemispherical or planar)
 * `layout` — the angle set that decides where each emitter center will be when projected either onto a plane or onto a hemisphere
 * `illuminator` — a physical arrangement of emitters that can capture a full ptychogram for a given layout
