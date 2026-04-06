@@ -22,10 +22,18 @@
 
 &nbsp;
 
-## Usage
+## Quick Start
+
+#### Installation
 
 ```
-python -m dcm_framework build_experiment
+python -m pip install https://github.com/icgi/dcm_framework.git
+```
+
+#### Usage
+
+```
+python -m dcm_framework experiment build
 ```
 
 ## Features
