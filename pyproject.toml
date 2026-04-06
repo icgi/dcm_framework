@@ -16,6 +16,23 @@ name = "dcm_framework"
 authors = [{name = "Ilyá Kostolomov", email = "ilya@icgi.no"}]
 readme = "README.md"
 dynamic = ["version", "description"]
+requires-python = ">=3.9"
+dependencies = [
+    "fire",
+    "jinja2",
+    "matplotlib",
+    "numpy",
+    "pandas",
+    "Pillow",
+    "questionary",
+    "shapely",
+    "pint",
+    "mpmath",
+    "openpyxl",
+]
+
+[project.optional-dependencies]
+friendly-names = ["friendly_names"]
 
 [project.scripts]
 hello = "dcm_framework.main:main"

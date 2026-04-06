@@ -1,0 +1,17 @@
+//
+//  Column indices
+//
+{%- for col in columns %}
+//  emitters[i][{{ col }}]
+{%- endfor %}
+//
+
+{%- for col in columns %}
+{{ col }} = {{ loop.index0 }};
+{%- endfor %}
+
+emitters = [
+{%- for entry in emitters %}
+    [{% for col in columns %}{% if entry[col] is string %}"{{ entry[col] }}"{% else %}{{ entry[col] }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}],
+{%- endfor %}
+];
