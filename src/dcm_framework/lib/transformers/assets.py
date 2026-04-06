@@ -101,19 +101,31 @@ class PtychogramNavigator___from___Protocol:
 
     MARKER_SIZE___PERCENTAGE = 3.5
 
+    PROJECTIONS = [
+        "stereographic",
+        "gnomonic",
+        "equidistant",
+        "orthographic",
+        "lambert",
+    ]
+
     @contract(
         requires=[
             ("projection", "x_stereographic"),
             ("projection", "y_stereographic"),
             ("projection", "x_gnomonic"),
             ("projection", "y_gnomonic"),
+            ("projection", "x_equidistant"),
+            ("projection", "y_equidistant"),
+            ("projection", "x_orthographic"),
+            ("projection", "y_orthographic"),
+            ("projection", "x_lambert"),
+            ("projection", "y_lambert"),
             ("paths", "path_to_preview_image"),
         ],
         provides=[],
     )
     def __call__(self, protocol, manifest):
-
-
         output_container = pathlib.Path(manifest["path_to_experiment_container"])
         templates_directory = importlib.resources.files("dcm_framework") / "templates"
         jinja2_environment = jinja2.Environment(
@@ -121,7 +133,7 @@ class PtychogramNavigator___from___Protocol:
         )
         template = jinja2_environment.get_template("PtychogramNavigator.jinja2")
 
-        for projection in ["stereographic", "gnomonic"]:
+        for projection in PtychogramNavigator___from___Protocol.PROJECTIONS:
             self._render_single_navigator(
                 protocol=protocol,
                 projection=projection,
@@ -172,16 +184,17 @@ class PtychogramNavigator___from___Protocol:
         pathlib.Path(output_path).write_text(html, encoding="utf-8")
 
 
-class PositionsScad___from___Protocol:
-    """ Renders OpenSCAD emitter position files from the protocol. """
+class IlluminatorShells___from___Protocol:
+    """ Renders OpenSCAD illuminator shell assets from the protocol. """
 
     SHELL_TEMPLATES = [
-        "hemispherical_illuminator_shell.scad",
-        "planar_illuminator_shell.scad",
+        "illuminator_shell___base.scad",
+        "illuminator_shell___hemispherical.scad",
+        "illuminator_shell___planar.scad",
     ]
 
     @contract(
-        requires=[],
+        requires=[("layout", "x"), ("layout", "y")],
         provides=[],
     )
     def __call__(self, protocol, manifest):
@@ -210,7 +223,26 @@ class PositionsScad___from___Protocol:
         )
         (output_directory / "emitters.scad").write_text(emitters_scad, encoding="utf-8")
 
-        for shell_filename in PositionsScad___from___Protocol.SHELL_TEMPLATES:
+        # computes shell extent from emitter positions
+        x___mm = protocol[("layout", "x")].values.astype(numpy.float64)
+        y___mm = protocol[("layout", "y")].values.astype(numpy.float64)
+        max_extent___mm = float(numpy.max(numpy.abs(numpy.concatenate([x___mm, y___mm]))))
+        manifest["shell_half_extent___mm"] = (
+            max_extent___mm
+            + manifest.get("shell_thickness___mm", 1.5)
+            + manifest.get("shell_edge_padding___mm", 10.0)
+        )
+
+        parameters_scad = jinja2_environment.get_template("manifest.scad.jinja2").render(
+            parameters={
+                key: value
+                for key, value in manifest.items()
+                if not isinstance(value, pathlib.PurePath)
+            },
+        )
+        (output_directory / "manifest.scad").write_text(parameters_scad, encoding="utf-8")
+
+        for shell_filename in IlluminatorShells___from___Protocol.SHELL_TEMPLATES:
             shutil.copy(templates_directory / shell_filename, output_directory / shell_filename)
 
         return protocol, manifest

@@ -38,6 +38,12 @@ python -m pip install .
 python -m dcm_framework experiment build
 ```
 
+or
+
+```
+dcm_framework experiment build 
+```
+
 ## Features
 
 ### Interactive Protocol Builder

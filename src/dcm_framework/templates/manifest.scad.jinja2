@@ -1,0 +1,10 @@
+//
+//  Manifest parameters
+//
+{%- for parameter_name, parameter_value in parameters.items() %}
+{%- if parameter_value is string %}
+{{ parameter_name }} = "{{ parameter_value }}";
+{%- else %}
+{{ parameter_name }} = {{ parameter_value }};
+{%- endif %}
+{%- endfor %}

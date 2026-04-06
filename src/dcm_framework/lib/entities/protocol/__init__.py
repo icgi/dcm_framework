@@ -92,7 +92,7 @@ class Protocol:
         execution_order = self._resolve_execution_order(transformer_classes)
 
         for transformer_class in execution_order:
-            print(transformer_class.__name__)
+            print(f"[TRANSFORMING] {transformer_class.__name__}")
             call_method = transformer_class.__call__
             protocol, manifest = call_method(self, protocol, manifest)
 

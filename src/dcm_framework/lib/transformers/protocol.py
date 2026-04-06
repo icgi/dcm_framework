@@ -131,6 +131,88 @@ class PolarLayout___from___Protocol:
         return protocol, manifest
 
 
+class EquidistantProjection___from___Protocol:
+    """ Appends equidistant (azimuthal equidistant) projection columns to the protocol. """
+
+    @contract(
+        requires=[("layout", "theta___rad"), ("layout", "phi___rad")],
+        provides=[("projection", "x_equidistant"), ("projection", "y_equidistant")],
+    )
+    def __call__(self, protocol, manifest):
+        theta___rad = protocol[("layout", "theta___rad")].values.astype(numpy.float64)
+        phi___rad = protocol[("layout", "phi___rad")].values.astype(numpy.float64)
+
+        # r = theta, maps equal angular steps to equal radial distances
+        x_equidistant = theta___rad * numpy.cos(phi___rad)
+        y_equidistant = theta___rad * numpy.sin(phi___rad)
+
+        frame_projection = pandas.DataFrame(
+            {"x_equidistant": x_equidistant, "y_equidistant": y_equidistant},
+            index=protocol.index,
+        )
+        frame_projection.columns = pandas.MultiIndex.from_product(
+            [["projection"], frame_projection.columns],
+        )
+
+        protocol = pandas.concat([protocol, frame_projection], axis="columns")
+        return protocol, manifest
+
+
+class OrthographicProjection___from___Protocol:
+    """ Appends orthographic projection columns to the protocol. """
+
+    @contract(
+        requires=[("layout", "theta___rad"), ("layout", "phi___rad")],
+        provides=[("projection", "x_orthographic"), ("projection", "y_orthographic")],
+    )
+    def __call__(self, protocol, manifest):
+        theta___rad = protocol[("layout", "theta___rad")].values.astype(numpy.float64)
+        phi___rad = protocol[("layout", "phi___rad")].values.astype(numpy.float64)
+
+        # r = sin(theta), projection as seen from infinity
+        x_orthographic = numpy.sin(theta___rad) * numpy.cos(phi___rad)
+        y_orthographic = numpy.sin(theta___rad) * numpy.sin(phi___rad)
+
+        frame_projection = pandas.DataFrame(
+            {"x_orthographic": x_orthographic, "y_orthographic": y_orthographic},
+            index=protocol.index,
+        )
+        frame_projection.columns = pandas.MultiIndex.from_product(
+            [["projection"], frame_projection.columns],
+        )
+
+        protocol = pandas.concat([protocol, frame_projection], axis="columns")
+        return protocol, manifest
+
+
+class LambertProjection___from___Protocol:
+    """ Appends Lambert azimuthal equal-area projection columns to the protocol. """
+
+    @contract(
+        requires=[("layout", "theta___rad"), ("layout", "phi___rad")],
+        provides=[("projection", "x_lambert"), ("projection", "y_lambert")],
+    )
+    def __call__(self, protocol, manifest):
+        theta___rad = protocol[("layout", "theta___rad")].values.astype(numpy.float64)
+        phi___rad = protocol[("layout", "phi___rad")].values.astype(numpy.float64)
+
+        # r = 2 * sin(theta / 2), preserves area
+        r = 2.0 * numpy.sin(theta___rad / 2.0)
+        x_lambert = r * numpy.cos(phi___rad)
+        y_lambert = r * numpy.sin(phi___rad)
+
+        frame_projection = pandas.DataFrame(
+            {"x_lambert": x_lambert, "y_lambert": y_lambert},
+            index=protocol.index,
+        )
+        frame_projection.columns = pandas.MultiIndex.from_product(
+            [["projection"], frame_projection.columns],
+        )
+
+        protocol = pandas.concat([protocol, frame_projection], axis="columns")
+        return protocol, manifest
+
+
 class Paths___from___Protocol:
     """ Appends image path columns to the protocol. """
 

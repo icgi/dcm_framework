@@ -9,16 +9,19 @@ from .lib.transformers.protocol import *
 
 class DcmProtocol(
     Manifest___from___Prompt,
-    Layout___from___Prompt,
+    Layout___from___Prompt___R2,
     StereographicProjection___from___Protocol,
     GnomonicProjection___from___Protocol,
+    EquidistantProjection___from___Protocol,
+    OrthographicProjection___from___Protocol,
+    LambertProjection___from___Protocol,
     PolarLayout___from___Protocol,
     Paths___from___Protocol,
     EmitterGeometryDefaults___from___Protocol,
     ExcelProtocol___from___Protocol,
     PlaceholderImages___from___Protocol,
     PtychogramNavigator___from___Protocol,
-    PositionsScad___from___Protocol,
+    IlluminatorShells___from___Protocol,
     LayoutOverviewImage___from___Protocol,
     Protocol,
 ):
@@ -44,7 +47,6 @@ class DcmFrameworkRunner:
                   ordinal                          - integer emitter index
                   theta___rad, phi___rad           - polar and azimuthal angles in radians
                   theta___deg, phi___deg           - polar and azimuthal angles in degrees
-                  magnitude___mm                   - Euclidean distance from origin to emitter
 
               projection
                   x_stereographic, y_stereographic - stereographic projection of direction vector
@@ -71,10 +73,12 @@ class DcmFrameworkRunner:
               emitters.scad
                   OpenSCAD source defining emitter positions and parameters as structured data.
                   Consumed by the parametric shell templates to generate 3D-printable geometry.
-              hemispherical_illuminator_shell.scad
-              planar_illuminator_shell.scad
-                  Parametric OpenSCAD shell templates that use emitters.scad to produce
-                  illuminator housings with emitter cutouts.
+              manifest.scad
+                  OpenSCAD source defining manifest parameters (shell thickness, padding, etc.).
+              illuminator_shell___hemispherical.scad
+              illuminator_shell___planar.scad
+                  Parametric OpenSCAD shell templates that use emitters.scad and manifest.scad
+                  to produce illuminator housings with emitter cutouts.
               layout_overview.png
                   Matplotlib plot showing emitter positions with ordinal labels,
                   concentric-ring overlays, and crosshairs.

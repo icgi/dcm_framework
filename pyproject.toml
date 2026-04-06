@@ -35,7 +35,7 @@ dependencies = [
 friendly-names = ["friendly_names"]
 
 [project.scripts]
-hello = "dcm_framework.main:main"
+dcm_framework = "dcm_framework.__main__:main"
 
 [project.urls]
 Home = "https://github.com/icgi/dcm_framework"

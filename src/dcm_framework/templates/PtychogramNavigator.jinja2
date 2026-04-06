@@ -37,19 +37,40 @@ html, body {
     transform: translate(-50%, -50%) scale(1.25);
     z-index: 100;
 }
-#image-path-input {
+#controls {
     position: fixed;
     top: 12px;
     right: 12px;
     z-index: 1000;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+#image-path-input {
     padding: 6px 10px;
     font-size: 14px;
+}
+#toggle-background {
+    padding: 6px 14px;
+    font-size: 14px;
+    cursor: pointer;
+    border: 1px solid #888;
+    background: #fff;
+    color: #000;
+}
+body.dark-background #toggle-background {
+    background: #222;
+    color: #fff;
+    border-color: #555;
 }
 </style>
 
 </head>
 <body>
-    <input id="image-path-input" type="text" value="preview" placeholder="select channel">
+    <div id="controls">
+        <input id="image-path-input" type="text" value="preview" placeholder="select channel">
+        <button id="toggle-background">&#9680;</button>
+    </div>
 
     <div id="container">
         <div id="canvas">
@@ -149,6 +170,16 @@ function centerCanvas() {
     originY = (container.clientHeight - canvas.offsetHeight) / 2;
     updateTransform();
 }
+
+const toggleBackgroundButton = document.getElementById('toggle-background');
+toggleBackgroundButton.addEventListener('click', function() {
+    document.body.classList.toggle('dark-background');
+    if (document.body.classList.contains('dark-background')) {
+        document.body.style.backgroundColor = '#000';
+    } else {
+        document.body.style.backgroundColor = '#fff';
+    }
+});
 
 window.addEventListener('resize', centerCanvas);
 centerCanvas();
