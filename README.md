@@ -27,7 +27,9 @@
 #### Installation
 
 ```
-python -m pip install https://github.com/icgi/dcm_framework.git
+git clone https://github.com/icgi/dcm_framework.git
+cd dcm_framework
+python -m pip install .
 ```
 
 #### Usage
