@@ -19,6 +19,7 @@ dynamic = ["version", "description"]
 requires-python = ">=3.9"
 dependencies = [
     "fire",
+    "friendly_names",
     "jinja2",
     "matplotlib",
     "numpy",
@@ -29,10 +30,9 @@ dependencies = [
     "pint",
     "mpmath",
     "openpyxl",
+    "tqdm",
+    "yaspin",
 ]
-
-[project.optional-dependencies]
-friendly-names = ["friendly_names"]
 
 [project.scripts]
 dcm_framework = "dcm_framework.__main__:main"

@@ -1,4 +1,5 @@
 include <illuminator_shell___base.scad>;
+include <emitter_footprint.scad>;
 
 include <manifest.scad>;
 include <emitters.scad>;
@@ -80,39 +81,6 @@ module enumeration_transform(emitter, surface_side = "outer", eps = 0.01) {
             assert(false, "surface_side must be \"outer\" or \"inner\"");
 }
 
-module emitter_path() {
-    translate([0, 0, -pos___shell_radius + 1.5]) {
-        cylinder(h = pos___shell_radius, d = 3);
-        translate([0, 0, -1])
-            cube([2, 2, 2], center = true);
-    }
-}
-
-if (enable_enumeration___bool)
-    add_emitter_labels(
-        emitters = emitters,
-        label_height___mm = enumeration_height___mm,
-        text_depth___mm = enumeration_text_depth___mm,
-        cylinder_radius___mm = enumeration_cylinder_radius___mm,
-        text_size = enumeration_font_size___mm,
-        surface_side = enumeration_on_outer_surface___bool ? "outer" : "inner"
-    )
-        shell(
-            pos___shell_radius,
-            neg___shell_radius
-        );
-else
-    difference() {
-        shell(
-            pos___shell_radius,
-            neg___shell_radius
-        );
-
-        neg___quiver(emitters, mode = "profile")
-            circle(2, $fn = 6);
-    }
-
-/*
 if (enable_enumeration___bool)
     add_emitter_labels(
         emitters = emitters,
@@ -134,6 +102,6 @@ else
         );
 
         neg___quiver(emitters, mode = "body")
-            emitter_path();
+            mirror([0, 0, 1])
+                emitter_footprint(pos___shell_radius);
     }
-*/

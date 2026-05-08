@@ -6,22 +6,11 @@ T* that capture user input from interactive prompt as the basis of experiment pr
 
 import numpy
 import pandas
-import base64
-import datetime
 import pathlib
-import random
-import uuid
 import questionary
 
 from ..entities.layout import GenericShell
-from ..entities.protocol import contract
-
-try:
-    import friendly_names as _friendly_names_module
-
-    _has_friendly_names = True
-except ImportError:
-    _has_friendly_names = False
+from ..._vendor.protocol_engine import contract
 
 SPIRAL_PRESETS = {
     "Spiral - Square rings": (4, "polygon"),
@@ -37,36 +26,9 @@ class Manifest___from___Prompt:
     @contract(
         requires=[],
         provides=[],
+        interactive=True,
     )
     def __call__(self, protocol, manifest):
-        date_string = datetime.date.today().strftime("%Y-%m-%d")
-        random_integer = random.randint(0, 999)
-
-
-
-        if _has_friendly_names:
-            identifier = _friendly_names_module.generate(words=3, separator="-")
-        else:
-            identifier = (
-                base64.urlsafe_b64encode(uuid.uuid4().bytes)
-                .rstrip(b"=")
-                .decode("ascii")
-            )
-
-        experiment_name_suggestion = f"experiment___{identifier}___{random_integer:03d}___{date_string}"
-
-        path_to_experiment_container = pathlib.Path(
-            questionary.text(
-                message="Path to experiment container (folder)",
-                default=".experiments",
-            ).ask()
-        )
-
-        experiment_name = questionary.text(
-            message="Experiment name",
-            default=experiment_name_suggestion,
-        ).ask()
-
         shell_thickness___mm = float(questionary.text(
             message="Shell thickness (mm)",
             default="1.5",
@@ -90,12 +52,12 @@ class Manifest___from___Prompt:
             ],
         ).ask()
 
-        manifest["experiment_name"] = experiment_name
+        manifest["experiment_name"] = self.workspace.name
         manifest["shell_thickness___mm"] = shell_thickness___mm
         manifest["sphere_truncation_depth___mm"] = sphere_truncation_depth___mm
         manifest["shell_edge_padding___mm"] = shell_edge_padding___mm
         manifest["initial_coordinate_system"] = initial_coordinate_system
-        manifest["path_to_experiment_container"] = path_to_experiment_container / experiment_name
+        manifest["path_to_experiment_container"] = self.workspace
 
         return protocol, manifest
 
@@ -109,6 +71,7 @@ class Layout___from___Prompt:
             ("layout", "x"),
             ("layout", "y"),
             ("layout", "distance_on_axis_to_sample___mm")],
+        interactive=True,
     )
     def __call__(self, protocol, manifest):
         illuminator_choice = questionary.select(
@@ -126,11 +89,11 @@ class Layout___from___Prompt:
         n_steps, shell_type = SPIRAL_PRESETS[illuminator_choice]
 
         n_shells = int(questionary.text(
-            message="Number of concentric shells",
+            message="Number of concentric rings",
             default="9",
         ).ask())
         spacing___mm = float(questionary.text(
-            message="Spacing between shells (mm)",
+            message="Spacing between rings (mm)",
             default="7"
         ).ask())
 
@@ -147,7 +110,7 @@ class Layout___from___Prompt:
 
 
 class Layout___from___Prompt___R2:
-    """ Prompts user for spiral layout with lateral or polar spacing. """
+    """ Prompts user for spiral layout with lateral or polar spacing, or loads from file. """
 
     @contract(
         requires=[],
@@ -156,10 +119,27 @@ class Layout___from___Prompt___R2:
             ("layout", "x"),
             ("layout", "y"),
             ("layout", "distance_on_axis_to_sample___mm")],
+        interactive=True,
     )
     def __call__(self, protocol, manifest):
         initial_coordinate_system = manifest.get("initial_coordinate_system", "")
         is_polar = "Polar" in initial_coordinate_system
+
+        layout_source = questionary.select(
+            message="Layout source",
+            choices=["Generate spiral", "Load from file"],
+        ).ask()
+
+        if layout_source == "Load from file":
+            protocol = self._load_from_file(is_polar=is_polar)
+        else:
+            protocol = self._generate_spiral(is_polar=is_polar)
+
+        result = protocol, manifest
+        return result
+
+    def _generate_spiral(self, is_polar):
+        result = None
 
         illuminator_choice = questionary.select(
             message="Choose an illuminator layout",
@@ -176,26 +156,22 @@ class Layout___from___Prompt___R2:
         n_steps, shell_type = SPIRAL_PRESETS[illuminator_choice]
 
         n_shells = int(questionary.text(
-            message="Number of concentric shells",
+            message="Number of concentric rings",
             default="9",
         ).ask())
 
         if is_polar:
             theta_step___deg = float(questionary.text(
-                message="Theta step between shells (degrees)",
+                message="Theta step between rings (degrees)",
                 default="5"
             ).ask())
             theta_step___rad = numpy.deg2rad(theta_step___deg)
 
-            # derives lateral distance per shell from polar angle
             scale_per_shell___mm = numpy.array([
                 distance_on_axis_to_sample___mm * numpy.tan(shell_index * theta_step___rad)
                 if shell_index > 0 else 0.0
                 for shell_index in range(n_shells + 1)
             ])
-            # converts cumulative radii to per-shell scale factors
-            # GenericShell at radius=r produces positions at unit distance r,
-            # so the scale factor for shell r is cumulative_radius / r
             scale_per_shell___mm = numpy.array([
                 scale_per_shell___mm[shell_index] / shell_index
                 if shell_index > 0 else 0.0
@@ -203,12 +179,12 @@ class Layout___from___Prompt___R2:
             ])
         else:
             spacing___mm = float(questionary.text(
-                message="Spacing between shells (mm)",
+                message="Spacing between rings (mm)",
                 default="7"
             ).ask())
             scale_per_shell___mm = numpy.full(n_shells + 1, spacing___mm)
 
-        protocol = _build_layout_frame(
+        result = _build_layout_frame(
             n_steps=n_steps,
             shell_type=shell_type,
             n_shells=n_shells,
@@ -216,7 +192,31 @@ class Layout___from___Prompt___R2:
             distance_on_axis_to_sample___mm=distance_on_axis_to_sample___mm,
         )
 
-        result = protocol, manifest
+        return result
+
+    def _load_from_file(self, is_polar):
+        result = None
+
+        path_to_file = pathlib.Path(
+            questionary.text(
+                message="Path to coordinate file (csv, xlsx, tsv)",
+            ).ask()
+        )
+
+        distance_on_axis_to_sample___mm = float(
+            questionary.text(
+                message="Distance from center of grid to sample hemisphere radius (mm)",
+                default="50"
+            ).ask()
+        )
+
+        frame_input = _read_tabular_file(path_to_file)
+        result = _normalize_coordinate_frame(
+            frame_input,
+            distance_on_axis_to_sample___mm=distance_on_axis_to_sample___mm,
+            is_polar=is_polar,
+        )
+
         return result
 
 
@@ -238,6 +238,118 @@ def _build_layout_frame(n_steps, shell_type, n_shells, scale_per_shell___mm, dis
 
     x___mm = positions_array[:, 0] * scale_per_shell___mm[shell_indices]
     y___mm = positions_array[:, 1] * scale_per_shell___mm[shell_indices]
+
+    result = pandas.DataFrame({
+        "x": x___mm,
+        "y": y___mm,
+        "z": None,
+        "distance_on_axis_to_sample___mm": distance_on_axis_to_sample___mm,
+    })
+    result["ordinal"] = numpy.arange(0, len(result))
+    result.columns = pandas.MultiIndex.from_product([["layout"], result.columns])
+
+    return result
+
+
+
+def _read_tabular_file(path_to_file):
+    """ Reads a tabular file into a DataFrame. Supports csv, tsv, xlsx. """
+    result = None
+
+    suffix = path_to_file.suffix.lower()
+    if suffix == ".xlsx":
+        result = pandas.read_excel(str(path_to_file))
+    elif suffix == ".tsv":
+        result = pandas.read_csv(str(path_to_file), sep="\t")
+    else:
+        result = pandas.read_csv(str(path_to_file))
+
+    return result
+
+
+#
+#    COLUMN RECOGNITION PATTERNS
+#
+
+_CARTESIAN_COLUMN_PATTERNS = {
+    "x": [("layout", "x"), ("geometry", "x___mm"), "x", "x___mm"],
+    "y": [("layout", "y"), ("geometry", "y___mm"), "y", "y___mm"],
+}
+
+_POLAR_COLUMN_PATTERNS = {
+    "theta": [
+        ("layout", "theta___rad"), ("geometry", "theta___rad"),
+        "theta___rad", "theta_rad", "theta",
+    ],
+    "phi": [
+        ("layout", "phi___rad"), ("geometry", "phi___rad"),
+        "phi___rad", "phi_rad", "phi",
+    ],
+    "theta_deg": [
+        ("layout", "theta___deg"), ("geometry", "theta___deg"),
+        "theta___deg", "theta_deg",
+    ],
+    "phi_deg": [
+        ("layout", "phi___deg"), ("geometry", "phi___deg"),
+        "phi___deg", "phi_deg",
+    ],
+}
+
+
+def _find_column(frame, candidates):
+    """ Returns the first matching column name from candidates, or None. """
+    result = None
+
+    for candidate in candidates:
+        if candidate in frame.columns:
+            result = candidate
+            break
+
+    return result
+
+
+def _normalize_coordinate_frame(frame_input, distance_on_axis_to_sample___mm, is_polar):
+    """ Converts loaded coordinates into a standard layout protocol DataFrame. """
+    result = None
+
+    x_column = _find_column(frame_input, _CARTESIAN_COLUMN_PATTERNS["x"])
+    y_column = _find_column(frame_input, _CARTESIAN_COLUMN_PATTERNS["y"])
+
+    theta_rad_column = _find_column(frame_input, _POLAR_COLUMN_PATTERNS["theta"])
+    phi_rad_column = _find_column(frame_input, _POLAR_COLUMN_PATTERNS["phi"])
+    theta_deg_column = _find_column(frame_input, _POLAR_COLUMN_PATTERNS["theta_deg"])
+    phi_deg_column = _find_column(frame_input, _POLAR_COLUMN_PATTERNS["phi_deg"])
+
+    has_cartesian = x_column is not None and y_column is not None
+    has_polar_rad = theta_rad_column is not None and phi_rad_column is not None
+    has_polar_deg = theta_deg_column is not None and phi_deg_column is not None
+
+    if has_cartesian and not is_polar:
+        x___mm = frame_input[x_column].values.astype(numpy.float64)
+        y___mm = frame_input[y_column].values.astype(numpy.float64)
+
+    elif has_polar_rad:
+        theta___rad = frame_input[theta_rad_column].values.astype(numpy.float64)
+        phi___rad = frame_input[phi_rad_column].values.astype(numpy.float64)
+        x___mm = distance_on_axis_to_sample___mm * numpy.tan(theta___rad) * numpy.cos(phi___rad)
+        y___mm = distance_on_axis_to_sample___mm * numpy.tan(theta___rad) * numpy.sin(phi___rad)
+
+    elif has_polar_deg:
+        theta___rad = numpy.deg2rad(frame_input[theta_deg_column].values.astype(numpy.float64))
+        phi___rad = numpy.deg2rad(frame_input[phi_deg_column].values.astype(numpy.float64))
+        x___mm = distance_on_axis_to_sample___mm * numpy.tan(theta___rad) * numpy.cos(phi___rad)
+        y___mm = distance_on_axis_to_sample___mm * numpy.tan(theta___rad) * numpy.sin(phi___rad)
+
+    elif has_cartesian:
+        # falls back to cartesian even in polar mode
+        x___mm = frame_input[x_column].values.astype(numpy.float64)
+        y___mm = frame_input[y_column].values.astype(numpy.float64)
+
+    else:
+        raise ValueError(
+            f"Cannot find coordinate columns in loaded file. "
+            f"Columns present: {list(frame_input.columns)}"
+        )
 
     result = pandas.DataFrame({
         "x": x___mm,

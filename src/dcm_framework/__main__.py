@@ -1,10 +1,24 @@
-import fire
+import base64
+import datetime
+import pathlib
+import random
+import uuid
 
-from .lib.entities.protocol import contract, Protocol
+import fire
+import questionary
+
+from ._vendor.protocol_engine import Protocol
+from ._vendor.protocol_engine.mixins import VerboseProtocol
 
 from .lib.transformers.assets import *
 from .lib.transformers.prompt import *
 from .lib.transformers.protocol import *
+
+try:
+    import friendly_names as _friendly_names_module
+    _has_friendly_names = True
+except ImportError:
+    _has_friendly_names = False
 
 
 class DcmProtocol(
@@ -23,9 +37,43 @@ class DcmProtocol(
     PtychogramNavigator___from___Protocol,
     IlluminatorShells___from___Protocol,
     LayoutOverviewImage___from___Protocol,
-    Protocol,
+    VerboseProtocol,
 ):
     pass
+
+
+def _prompt_for_workspace():
+    """ Prompts for experiment container path and name, returns the workspace path. """
+    result = None
+
+    date_string = datetime.date.today().strftime("%Y-%m-%d")
+    random_integer = random.randint(0, 999)
+
+    if _has_friendly_names:
+        identifier = _friendly_names_module.generate(words=3, separator="-")
+    else:
+        identifier = (
+            base64.urlsafe_b64encode(uuid.uuid4().bytes)
+            .rstrip(b"=")
+            .decode("ascii")
+        )
+
+    experiment_name_suggestion = f"experiment___{identifier}___{random_integer:03d}___{date_string}"
+
+    path_to_experiment_container = pathlib.Path(
+        questionary.text(
+            message="Path to experiment container (folder)",
+            default="./experiments",
+        ).ask()
+    )
+
+    experiment_name = questionary.text(
+        message="Experiment name",
+        default=experiment_name_suggestion,
+    ).ask()
+
+    result = path_to_experiment_container / experiment_name
+    return result
 
 
 class DcmFrameworkRunner:
@@ -84,7 +132,8 @@ class DcmFrameworkRunner:
                   concentric-ring overlays, and crosshairs.
 
             """
-            protocol = DcmProtocol()
+            workspace = _prompt_for_workspace()
+            protocol = DcmProtocol(workspace=workspace)
             protocol.build()
 
 

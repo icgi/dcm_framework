@@ -8,7 +8,7 @@ import numpy
 import pandas
 import pathlib
 
-from ..entities.protocol import contract
+from ..._vendor.protocol_engine import contract
 
 
 class StereographicProjection___from___Protocol:

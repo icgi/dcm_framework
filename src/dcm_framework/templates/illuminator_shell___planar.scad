@@ -1,4 +1,5 @@
 include <illuminator_shell___base.scad>;
+include <emitter_footprint.scad>;
 
 include <manifest.scad>;
 include <emitters.scad>;
@@ -44,13 +45,6 @@ module shell() {
         ]);
 }
 
-module emitter_path(eps = 0.01) {
-    cylinder(h = shell_thickness___mm + 2 * eps, d = 3);
-
-    translate([0, 0, -1])
-        cube([2, 2, 2], center = true);
-}
-
 if (enable_enumeration___bool)
     add_emitter_labels(
         emitters = emitters,
@@ -66,5 +60,5 @@ else
         shell();
 
         neg___quiver(emitters, mode = "body")
-            emitter_path();
+            emitter_footprint(shell_thickness___mm);
     }

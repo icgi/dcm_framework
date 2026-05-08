@@ -13,7 +13,30 @@ import pathlib
 import matplotlib.patches
 import matplotlib.pyplot as plt
 
-from ..entities.protocol import contract
+import re
+
+from ..._vendor.protocol_engine import contract
+
+
+_SCAD_IDENTIFIER_SANITIZER = re.compile(r"[^a-zA-Z0-9_]")
+_SCAD_UNSUPPORTED_TYPES = (pathlib.PurePath, list, dict)
+
+
+def _normalize_manifest_for_scad(manifest):
+    """ Converts manifest keys to valid OpenSCAD identifiers and filters non-serializable values. """
+
+    result = {}
+    for key, value in manifest.items():
+        if isinstance(value, _SCAD_UNSUPPORTED_TYPES):
+            continue
+        if isinstance(key, tuple):
+            normalized_key = "___".join(str(segment) for segment in key)
+        else:
+            normalized_key = str(key)
+        normalized_key = _SCAD_IDENTIFIER_SANITIZER.sub("_", normalized_key)
+        result[normalized_key] = value
+
+    return result
 
 
 class ExcelProtocol___from___Protocol:
@@ -188,6 +211,7 @@ class IlluminatorShells___from___Protocol:
     """ Renders OpenSCAD illuminator shell assets from the protocol. """
 
     SHELL_TEMPLATES = [
+        "emitter_footprint.scad",
         "illuminator_shell___base.scad",
         "illuminator_shell___hemispherical.scad",
         "illuminator_shell___planar.scad",
@@ -234,11 +258,7 @@ class IlluminatorShells___from___Protocol:
         )
 
         parameters_scad = jinja2_environment.get_template("manifest.scad.jinja2").render(
-            parameters={
-                key: value
-                for key, value in manifest.items()
-                if not isinstance(value, pathlib.PurePath)
-            },
+            parameters=_normalize_manifest_for_scad(manifest),
         )
         (output_directory / "manifest.scad").write_text(parameters_scad, encoding="utf-8")
 
