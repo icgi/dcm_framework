@@ -29,17 +29,22 @@ import yaspin.spinners
 
 logger = logging.getLogger(__name__)
 
-def contract(provides=None, requires=None, level="frame", interactive=False):
+def contract(provides=None, requires=None, level="frame", interactive=False, n_entries=None):
     """
 
         Stamps contract metadata onto a transformer's ``__call__`` so the engine can plan
         execution order and dispatch correctly. ``provides`` and ``requires`` are lists of
         protocol column keys; ``level`` is ``"frame"`` (default; called once per protocol
-        with ``(protocol, manifest)`` and returning ``(protocol, manifest)``) or ``"entry"``
+        with ``(protocol, manifest)`` and returning ``(protocol, manifest)``), ``"entry"``
         (called per row with ``(entry, manifest)`` and returning a dict or ``pandas.Series``
-        of new column values for that row). ``interactive`` marks transformers that require
-        stdin (e.g. user prompts) and should not be wrapped in a spinner. All runtime
-        enforcement lives in ``Protocol.apply``; this decorator only attaches attributes.
+        of new column values for that row), or ``"partition"`` (called per sub-DataFrame of
+        ``n_entries`` rows with ``(partition, manifest)`` and returning
+        ``(partition_result, manifest)``; partition results are concatenated and joined back
+        onto the protocol by index). ``interactive`` marks transformers that require stdin
+        (e.g. user prompts) and should not be wrapped in a spinner. ``n_entries`` is required
+        when ``level="partition"`` and specifies how many protocol rows each partition
+        contains (the last partition may be smaller). All runtime enforcement lives in
+        ``Protocol.apply``; this decorator only attaches attributes.
 
     """
 
@@ -48,6 +53,7 @@ def contract(provides=None, requires=None, level="frame", interactive=False):
         method.requires = requires or []
         method.level = level
         method.interactive = interactive
+        method.n_entries = n_entries
         return method
 
     return decorator
@@ -423,17 +429,19 @@ class Protocol:
         self, callable_, protocol, manifest,
         mode=None, use_concurrency=True,
         max_workers=None, executor_type="thread",
-        shuffle=False,
+        shuffle=False, n_entries=None,
     ):
         """
 
             Single dispatch fork for the engine. Validates required columns once, then
-            either invokes ``callable_`` once at frame scope or dispatches it per row and
-            joins the results back onto the protocol. Returns ``(protocol, manifest)`` in
-            both modes so the caller does not need to know which path ran.
+            either invokes ``callable_`` once at frame scope, dispatches it per row, or
+            dispatches it per partition and joins the results back onto the protocol. Returns
+            ``(protocol, manifest)`` in all modes so the caller does not need to know which
+            path ran.
 
             ``mode`` defaults to the callable's declared ``level`` attribute (set by
-            ``@contract``); pass ``"frame"`` or ``"entry"`` explicitly for plain callables.
+            ``@contract``); pass ``"frame"``, ``"entry"``, or ``"partition"`` explicitly
+            for plain callables.
 
             Frame mode invokes ``callable_(protocol, manifest)`` once and expects
             ``(protocol, manifest)`` back; the manifest stays mutable so frame-level steps
@@ -445,13 +453,22 @@ class Protocol:
             (process executor) so per-row writes cannot leak across rows. Results are
             reindexed to the input order and joined onto the protocol by index.
 
-            ``use_concurrency=True`` runs per-row calls in an executor; ``executor_type``
-            selects ``"thread"`` (default, cheap) or ``"process"`` (true parallelism but
-            the callable, entry, and manifest must be picklable). ``max_workers`` overrides
-            the executor default. ``shuffle=True`` randomizes submission order, useful when
-            row latency is uneven; the result is always reindexed to the input frame's
-            index. ``use_concurrency=False`` calls each row inline for cleaner tracebacks.
-            Per-row exceptions are wrapped with the failing row's index value.
+            Partition mode invokes ``callable_(partition, frozen_manifest)`` for each
+            sub-DataFrame of ``n_entries`` rows (the last partition may be smaller). Each
+            call returns ``(partition_result, manifest)`` where ``partition_result`` is a
+            DataFrame of new columns for those rows. Results are concatenated, reindexed,
+            and joined onto the protocol by index. ``n_entries`` defaults to the callable's
+            declared ``n_entries`` attribute; a ``ValueError`` is raised if neither source
+            provides it.
+
+            ``use_concurrency=True`` runs per-row or per-partition calls in an executor;
+            ``executor_type`` selects ``"thread"`` (default, cheap) or ``"process"`` (true
+            parallelism but the callable, data, and manifest must be picklable).
+            ``max_workers`` overrides the executor default. ``shuffle=True`` randomizes
+            submission order, useful when row or partition latency is uneven; the result is
+            always reindexed to the input frame's index. ``use_concurrency=False`` calls
+            each row or partition inline for cleaner tracebacks. Per-row and per-partition
+            exceptions are wrapped with the failing index values.
 
         """
 
@@ -529,8 +546,86 @@ class Protocol:
             # restore original order so the index-aligned join is stable under shuffle
             frame_with_results = frame_with_results.reindex(protocol.index)
             protocol = protocol.join(frame_with_results, how="left", validate="one_to_one")
+        elif mode == "partition":
+            resolved_n_entries = n_entries if n_entries is not None else getattr(callable_, "n_entries", None)
+            if resolved_n_entries is None:
+                raise ValueError("partition mode requires n_entries (via contract or apply argument)")
+
+            if executor_type == "process":
+                frozen_manifest = dict(manifest)
+            else:
+                frozen_manifest = types.MappingProxyType(manifest)
+
+            if shuffle:
+                iteration_frame = protocol.sample(frac=1)
+            else:
+                iteration_frame = protocol
+
+            # split the frame into partitions of resolved_n_entries rows, preserving index slices
+            total_rows = len(iteration_frame)
+            buffer_for_partitions = []
+            for start in range(0, total_rows, resolved_n_entries):
+                partition = iteration_frame.iloc[start:start + resolved_n_entries]
+                buffer_for_partitions.append((list(partition.index), partition))
+
+            # collect (partition_indices, partition_result_frame) pairs
+            if use_concurrency:
+                executor_class = {
+                    "thread": concurrent.futures.ThreadPoolExecutor,
+                    "process": concurrent.futures.ProcessPoolExecutor,
+                }[executor_type]
+                with executor_class(max_workers=max_workers) as executor:
+                    pairs_for_pending = [
+                        (partition_indices, executor.submit(callable_, partition, frozen_manifest))
+                        for partition_indices, partition in buffer_for_partitions
+                    ]
+                    pairs_for_results = []
+                    for partition_indices, future in pairs_for_pending:
+                        try:
+                            partition_result, _ = future.result()
+                            pairs_for_results.append((partition_indices, partition_result))
+                        except Exception as exception:
+                            raise RuntimeError(
+                                f"partition starting at index {partition_indices[0]!r} raised "
+                                f"{type(exception).__name__}: {exception}"
+                            ) from exception
+            else:
+                pairs_for_results = []
+                for partition_indices, partition in buffer_for_partitions:
+                    try:
+                        partition_result, _ = callable_(partition, frozen_manifest)
+                        pairs_for_results.append((partition_indices, partition_result))
+                    except Exception as exception:
+                        raise RuntimeError(
+                            f"partition starting at index {partition_indices[0]!r} raised "
+                            f"{type(exception).__name__}: {exception}"
+                        ) from exception
+
+            # reassemble: expand each (partition_indices, partition_result_frame) into per-row pairs
+            buffer_for_indices = []
+            buffer_for_records = []
+            for partition_indices, partition_result in pairs_for_results:
+                for index_value, (_, row) in zip(partition_indices, partition_result.iterrows()):
+                    buffer_for_indices.append(index_value)
+                    buffer_for_records.append(row)
+
+            frame_with_results = pandas.DataFrame(buffer_for_records, index=buffer_for_indices)
+
+            # tuple-keyed columns are promoted to MultiIndex so the join respects the convention
+            has_columns = len(frame_with_results.columns) > 0
+            tuple_columns = has_columns and all(
+                isinstance(column, tuple) for column in frame_with_results.columns
+            )
+            if tuple_columns:
+                frame_with_results.columns = pandas.MultiIndex.from_tuples(
+                    list(frame_with_results.columns)
+                )
+
+            # restore original order so the index-aligned join is stable under shuffle
+            frame_with_results = frame_with_results.reindex(protocol.index)
+            protocol = protocol.join(frame_with_results, how="left", validate="one_to_one")
         else:
-            raise ValueError(f"unknown mode: {mode!r} (expected 'frame' or 'entry')")
+            raise ValueError(f"unknown mode: {mode!r} (expected 'frame', 'entry', or 'partition')")
 
         result = protocol, manifest
         return result

@@ -29,6 +29,9 @@ def _normalize_manifest_for_scad(manifest):
     for key, value in manifest.items():
         if isinstance(value, _SCAD_UNSUPPORTED_TYPES):
             continue
+        # coerces numpy booleans so the template's boolean test recognizes them
+        if isinstance(value, (bool, numpy.bool_)):
+            value = bool(value)
         if isinstance(key, tuple):
             normalized_key = "___".join(str(segment) for segment in key)
         else:
@@ -212,9 +215,11 @@ class IlluminatorShells___from___Protocol:
 
     SHELL_TEMPLATES = [
         "emitter_footprint.scad",
+        "ring_transition_markers.scad",
         "illuminator_shell___base.scad",
         "illuminator_shell___hemispherical.scad",
         "illuminator_shell___planar.scad",
+        "shell_support.scad",
     ]
 
     @contract(

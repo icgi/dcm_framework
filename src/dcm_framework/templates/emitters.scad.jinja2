@@ -12,6 +12,6 @@
 
 emitters = [
 {%- for entry in emitters %}
-    [{% for col in columns %}{% if entry[col] is string %}"{{ entry[col] }}"{% else %}{{ entry[col] }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}],
+    [{% for col in columns %}{% if entry[col] is boolean %}{{ "true" if entry[col] else "false" }}{% elif entry[col] is string %}"{{ entry[col] }}"{% else %}{{ entry[col] }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}],
 {%- endfor %}
 ];

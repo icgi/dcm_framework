@@ -198,3 +198,37 @@ module add_emitter_labels(
         );
     }
 }
+
+// 2D wedge polygon (fan from origin) spanning [start, end] degrees
+function sector_arc_points(start_angle___deg, end_angle___deg, radius, fragments) =
+    let(steps = max(1, ceil(fragments * abs(end_angle___deg - start_angle___deg) / 360)))
+    [
+        for (i = [0 : steps])
+            let(a = start_angle___deg + (end_angle___deg - start_angle___deg) * i / steps)
+            [radius * cos(a), radius * sin(a)]
+    ];
+
+module sector_wedge_2d(start_angle___deg, end_angle___deg, radius, fragments = 96) {
+    polygon(points = concat(
+        [[0, 0]],
+        sector_arc_points(start_angle___deg, end_angle___deg, radius, fragments)
+    ));
+}
+
+// keeps only the angular wedge [start, end] of its children; a span of
+// >= 360 degrees (or <= 0) passes the children through unchanged
+module sector_clip(start_angle___deg, end_angle___deg, clip_radius, fragments = 96) {
+    span = end_angle___deg - start_angle___deg;
+
+    if (span <= 0 || span >= 360) {
+        children();
+    } else {
+        intersection() {
+            children();
+
+            translate([0, 0, -clip_radius])
+                linear_extrude(height = 2 * clip_radius, convexity = 4)
+                    sector_wedge_2d(start_angle___deg, end_angle___deg, clip_radius, fragments);
+        }
+    }
+}

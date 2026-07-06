@@ -1,6 +1,11 @@
+// base modules call back into shell-defined emitter_transform and
+// emitter_magnitude___mm, so include <...> is required to share scope
 include <illuminator_shell___base.scad>;
-include <emitter_footprint.scad>;
 
+// imports the footprint module without executing its standalone test rendering
+use <emitter_footprint.scad>;
+
+// generated data files defining top-level variables; must be include <...>
 include <manifest.scad>;
 include <emitters.scad>;
 

@@ -32,11 +32,11 @@ class DcmProtocol(
     PolarLayout___from___Protocol,
     Paths___from___Protocol,
     EmitterGeometryDefaults___from___Protocol,
-    ExcelProtocol___from___Protocol,
     PlaceholderImages___from___Protocol,
     PtychogramNavigator___from___Protocol,
     IlluminatorShells___from___Protocol,
     LayoutOverviewImage___from___Protocol,
+    ExcelProtocol___from___Protocol,
     VerboseProtocol,
 ):
     pass
@@ -126,7 +126,14 @@ class DcmFrameworkRunner:
               illuminator_shell___hemispherical.scad
               illuminator_shell___planar.scad
                   Parametric OpenSCAD shell templates that use emitters.scad and manifest.scad
-                  to produce illuminator housings with emitter cutouts.
+                  to produce illuminator housings with emitter cutouts. The hemispherical
+                  shell optionally engraves ring transition markers between theta rings,
+                  renders the support alongside the shell, and clips the model to an
+                  angular sector for test prints.
+              shell_support.scad
+                  Standalone parametric support for the hemispherical shell: upper and lower
+                  rings (heights and widths adjustable separately), pillars sized relative
+                  to the shell radius, and an alignment notch.
               layout_overview.png
                   Matplotlib plot showing emitter positions with ordinal labels,
                   concentric-ring overlays, and crosshairs.
